@@ -80,86 +80,150 @@ namespace Alumni
 			if (cc.Length >= 2) {
 				Request request = new Request(cc[1], cc[0]);
 				
+				
 				if (cc[1].Equals("/")) {
-					request.Path = "index.html";
-				} /*else {
-					request.Path = cc[1];
-				}*/
-								
+					//if (File.Exists(source.Path + "/index.html")) {
+						request.Path = "index.html";
+					//} else if (File.Exists(source.Path + "/index.htm")) {
+					//	request.Path = "index.htm";						
+					}
+				//} /*else {
+				//	request.Path = cc[1];
+				//}
+				
 				foreach (Source source in this.server.Sources) {
-					if (File.Exists(source.Path + "/" + request.Path)) {
+					string username = null, password = null;
+					
+					if (d.IndexOf("Authorization: Basic ") >= 0) {
+						string e = d.Substring(d.IndexOf("Authorization: Basic ") + "Authorization: Basic ".Length);
+						
+						e = e.Substring(0, e.IndexOf('\n'));
+						
+						e = System.Text.Encoding.Default.GetString(Convert.FromBase64String(e));
+						
+						if (e.IndexOf(':') >= 0) {
+							username = e.Substring(0, e.IndexOf(':'));
+							
+							password = e.Substring(e.IndexOf(':') + 1);
+						}
+					}
+					
+					if (source.Authorization != null) {
+						bool authorized = false;
+						
+						if (username != null && password != null) {
+							if (source.Authorization.Users.ContainsKey(username)) {
+								if (source.Authorization.Users[username].Password.Equals(password)) {
+									authorized = true;
+								}
+							}
+						}
+						
+						if (!authorized) {
+							this.WriteNetworkStream(ns, "HTTP/1.1 401 Unauthorized\r\n");
+							
+							this.WriteNetworkStream(ns, "WWW-Authenticate: Basic realm=\"Alumni Web Server\"\r\n");
+							
+							ns.Close();
+							
+							this.client.Close();
+							
+							return;
+						}
+					}
+					
+					if (File.Exists(source.Path + "/" + request.Path) || Directory.Exists(source.Path + "/" + request.Path)) {
 						string fullPath = Utils.GetFullPath(source.Path + "/" + request.Path);
-						string username = null, password = null;
 						
 						if (fullPath.IndexOf(source.Path) == -1) {
 							continue;
 						}
-						
-						if (d.IndexOf("Authorization: Basic ") >= 0) {
-							string e = d.Substring(d.IndexOf("Authorization: Basic ") + "Authorization: Basic ".Length);
+										
+						if (Directory.Exists(source.Path + "/" + request.Path)) {
+							this.WriteNetworkStream(ns, "HTTP/1.0 200 OK\r\n");
+
+							//this.WriteNetworkStream(ns, "Connection: close\r\n");
 							
-							e = e.Substring(0, e.IndexOf('\n'));
+							this.WriteNetworkStream(ns, "Content-Type: text/html\r\n\r\n");
 							
-							e = System.Text.Encoding.Default.GetString(Convert.FromBase64String(e));
+							this.WriteNetworkStream(ns, "<!DOCTYPE HTML>\r\n");
 							
-							if (e.IndexOf(':') >= 0) {
-								username = e.Substring(0, e.IndexOf(':'));
+							this.WriteNetworkStream(ns, "<html>\r\n");
+							
+							this.WriteNetworkStream(ns, "<head>\r\n");
+							
+							this.WriteNetworkStream(ns, "<title>Directory listing</title>\r\n");
+							
+							this.WriteNetworkStream(ns, "</head>\r\n");
+							
+							this.WriteNetworkStream(ns, "<body>\r\n");
+							
+							//this.WriteNetworkStream(ns, "<a href=\"/../\">..</a><br>\r\n");
+							
+							string[] directories = Directory.GetDirectories(source.Path + "/" + request.Path);
+							
+							foreach (string s in directories) {
+								string t = s;
 								
-								password = e.Substring(e.IndexOf(':') + 1);
+								if (s.IndexOf(source.Path) == 0) {
+									t = s.Substring(source.Path.Length);
+								}
+								
+								this.WriteNetworkStream(ns, "<a href=\"" + t + "\">" + t + "</a><br>\r\n");
 							}
-						}
-						
-						if (source.Authorization != null) {
-							bool authorized = false;
 							
-							if (username != null && password != null) {
-								if (source.Authorization.Users.ContainsKey(username)) {
-									if (source.Authorization.Users[username].Password.Equals(password)) {
-										authorized = true;
-									}
+							string[] files = Directory.GetFiles(source.Path + "/" + request.Path);
+							
+							foreach (string s in files) {
+								string t = s;
+								
+								if (s.IndexOf(source.Path) == 0) {
+									t = s.Substring(source.Path.Length);
+								}
+								
+								this.WriteNetworkStream(ns, "<a href=\"" + t + "\">" + t + "</a><br>\r\n");
+							}
+							
+							this.WriteNetworkStream(ns, "</body>\r\n");
+							
+							this.WriteNetworkStream(ns, "</html>\r\n");
+							
+							ns.Close();
+							
+							client.Close();
+							
+							return;
+						} else {
+							string type = null;
+							
+							if (fullPath.LastIndexOf('.') >= 0) {
+								string extension = fullPath.Substring(fullPath.LastIndexOf('.'));
+								
+								if (MIMEType.MIMETypes.ContainsKey(extension.ToLower())) {
+									type = MIMEType.MIMETypes[extension.ToLower()].Type;
 								}
 							}
 							
-							if (!authorized) {
-								this.WriteNetworkStream(ns, "HTTP/1.1 401 Unauthorized\r\n");
-								
-								this.WriteNetworkStream(ns, "WWW-Authenticate: Basic realm=\"Alumni Web Server\"\r\n");
-								
-								ns.Close();
-								
-								this.client.Close();
-								
-								return;
+							if (type == null) {
+								type = "application/octet-stream";
 							}
-						}
-						
-						string type = null;
-						
-						if (fullPath.LastIndexOf('.') >= 0) {
-							string extension = fullPath.Substring(fullPath.LastIndexOf('.'));
 							
-							if (MIMEType.MIMETypes.ContainsKey(extension.ToLower())) {
-								type = MIMEType.MIMETypes[extension.ToLower()].Type;
-							}
+							this.WriteNetworkStream(ns, "HTTP/1.0 200 OK\r\n");
+							
+							this.WriteNetworkStream(ns, "Content-Type: " + type + "\r\n");
+							
+							this.WriteNetworkStream(ns, "Connection: close\r\n");
+							
+							string s = File.ReadAllText(fullPath);
+							
+							this.WriteNetworkStream(ns, "Content-Length: " + s.Length + "\r\n\r\n");
+							
+							this.WriteNetworkStream(ns, s);
+							
+							ns.Close();
+							
+							this.client.Close();
 						}
-						
-						if (type == null) {
-							type = "application/octet-stream";
-						}
-						
-						this.WriteNetworkStream(ns, "HTTP/1.0 200 OK\r\n");
-						
-						this.WriteNetworkStream(ns, "Content-Type: " + type + "\r\n");
-						
-						string s = File.ReadAllText(fullPath);
-						
-						this.WriteNetworkStream(ns, "Content-Length: " + s.Length + "\r\n\r\n");
-						
-						this.WriteNetworkStream(ns, s);
-						
-						ns.Close();
-						
-						this.client.Close();
 						
 						return;
 					} else if (source.CGI.IndexOf(request.Path) >= 0 && source.CGI.Length > 0) {
@@ -179,6 +243,16 @@ namespace Alumni
 						
 						Process prc = new Process();
 						
+						/*
+						if (source.Authorization != null) {
+							psi.EnvironmentVariables.Add("AUTH_TYPE", "Basic");
+						} else {
+							psi.EnvironmentVariables.Add("AUTH_TYPE", "");
+						}
+						*/
+						
+						//psi.EnvironmentVariables.Add("CONTENT_LENGTH", "" + readBuffer.Length);
+						
 						prc.StartInfo = psi;
 						
 						prc.Start();
@@ -190,7 +264,7 @@ namespace Alumni
 						if (prc.ExitCode == 0) {
 							string s = prc.StandardOutput.ReadToEnd();
 							
-							this.WriteNetworkStream(ns, "HTTP/1.0 200 OK\r\n" + s);
+							this.WriteNetworkStream(ns, "HTTP/1.0 200 OK\r\nConnection: close\r\n" + s);
 						} else {
 							NotFound(ns);
 						}
