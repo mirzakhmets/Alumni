@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace Alumni
 {
@@ -39,8 +40,49 @@ namespace Alumni
     private OpenFileDialog openConfigurationFileDialog;
     private SaveFileDialog saveConfigurationFileDialog;
 
+    public void CheckRuns() {
+		try {
+			RegistryKey key = Registry.CurrentUser.OpenSubKey("Software\\OVG-Developers", true);
+			
+			int runs = -1;
+			
+			if (key != null && key.GetValue("Runs") != null) {
+				runs = (int) key.GetValue("Runs");
+			} else {
+				key = Registry.CurrentUser.CreateSubKey("Software\\OVG-Developers");
+			}
+			
+			runs = runs + 1;
+			
+			key.SetValue("Runs", runs);
+			
+			if (runs > 10) {
+				System.Windows.Forms.MessageBox.Show("Number of runs expired.\n"
+							+ "Please register the application (visit https://ovg-developers.mystrikingly.com/ for purchase).");
+				
+				Environment.Exit(0);
+			}
+		} catch (Exception e) {
+			Console.WriteLine(e.Message);
+		}
+	}
+	
+	public bool IsRegistered() {
+		try {
+			RegistryKey key = Registry.CurrentUser.OpenSubKey("Software\\OVG-Developers");
+			
+			if (key != null && key.GetValue("Registered") != null) {
+				return true;
+			}
+		} catch (Exception e) {
+			Console.WriteLine(e.Message);
+		}
+		
+		return false;
+	}
+	
     public MainForm() {
-    	this.InitializeComponent();
+    	this.InitializeComponent();    	
     }
 
     private void ButtonRunClick(object sender, EventArgs e)
@@ -141,7 +183,10 @@ namespace Alumni
     }
 
     private void MainFormShown(object sender, EventArgs e)
-    {
+    {	
+      	if (!IsRegistered()) {
+    		CheckRuns();
+    	}
     }
 
     private void MainFormLoad(object sender, EventArgs e)
