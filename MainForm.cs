@@ -4,7 +4,10 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
+
+#if TRIAL
 using Microsoft.Win32;
+#endif
 
 namespace Alumni
 {
@@ -40,6 +43,7 @@ namespace Alumni
     private OpenFileDialog openConfigurationFileDialog;
     private SaveFileDialog saveConfigurationFileDialog;
 
+    #if TRIAL
     public void CheckRuns() {
 		try {
 			RegistryKey key = Registry.CurrentUser.OpenSubKey("Software\\OVG-Developers", true);
@@ -80,6 +84,7 @@ namespace Alumni
 		
 		return false;
 	}
+    #endif
 	
     public MainForm() {
     	this.InitializeComponent();    	
@@ -184,9 +189,11 @@ namespace Alumni
 
     private void MainFormShown(object sender, EventArgs e)
     {	
+    	#if TRIAL
       	if (!IsRegistered()) {
     		CheckRuns();
     	}
+    	#endif
     }
 
     private void MainFormLoad(object sender, EventArgs e)
