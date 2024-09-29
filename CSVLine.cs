@@ -37,10 +37,11 @@ namespace Alumni
           if (stream.current == 92 && num != -1)
           {
             stream.Read();
-            str += (string) (object) checked ((char) stream.current);
+            if (!stream.atEnd())
+	            str += ((char) stream.current);
           }
           else
-            str += (string) (object) checked ((char) stream.current);
+            str += ((char) stream.current);
           stream.Read();
         }
       }
@@ -51,10 +52,12 @@ namespace Alumni
           if (stream.current == 92)
           {
             stream.Read();
-            str += (string) (object) checked ((char) stream.current);
+            
+            if (!stream.atEnd())
+	            str += ((char) stream.current);
           }
           else
-            str += (string) (object) checked ((char) stream.current);
+            str += ((char) stream.current);
           stream.Read();
         }
         if (stream.current == num)

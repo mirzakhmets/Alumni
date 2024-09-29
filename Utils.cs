@@ -39,16 +39,16 @@ namespace Alumni
             checked { ++index; }
             checked { ++num2; }
           }
-          str2 += (string) (object) checked ((char) num1);
+          str2 += ((char) num1);
         }
         else if (str1[index] == '+')
         {
-          str2 += (string) (object) ' ';
+          str2 += ' ';
           checked { ++index; }
         }
         else
         {
-          str2 += (string) (object) str1[index];
+          str2 += str1[index];
           checked { ++index; }
         }
       }
